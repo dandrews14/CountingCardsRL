@@ -13,16 +13,7 @@ def encodeState(s1,s2,s3,s4):
   else:
       s3 = 0
 
-  if s4 <= -10:
-    s4 = 0
-  elif s4 <= -5:
-    s4 = 1
-  elif -5 < s4 < 5:
-    s4 = 2
-  elif 5 <= s4 < 10:
-    s4 = 3 
-  else:
-    s4 = 4
+  s4 = getS4(s4)
 
   output = s1
   output *= 11
@@ -32,6 +23,19 @@ def encodeState(s1,s2,s3,s4):
   output *= 2
   output += s3
   return output 
+
+def getS4(s4):
+    if s4 <= -10:
+        s4 = 0
+    elif s4 <= -5:
+        s4 = 1
+    elif -5 < s4 < 5:
+        s4 = 2
+    elif 5 <= s4 < 10:
+        s4 = 3 
+    else:
+        s4 = 4
+    return s4
 
 class Deck:
     def __init__(self):
@@ -192,6 +196,72 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
     return Q
 
+def learnBetting(gamma, alpha, epsilon, n_episodes, decay, deck, qt):
+    """
+    gamma: Discount rate
+    alpha: Learning rate
+    epsilon: Exploration rate
+    n_episodes: Number of training episodes
+    decay: Epsilon decay rate
+    """
+    max_steps = 500
+
+    game = Game()
+    
+    Q = np.zeros((5, 8))
+    for ep in range(n_episodes):
+
+        state = getS4(deck.TC)
+        
+        if not ep%10000:
+            print(ep, "epsilon: {}".format(epsilon))
+
+        i = 0
+        while i < max_steps:
+
+            if np.random.uniform(0,1) < epsilon:
+                action = random.randint(0, 7) # take random action
+            else:
+                action = np.argmax(Q[state])
+            
+            complete = False
+
+            player, dealer, s1, s2, s3, s4 = game.start(deck)
+
+            s = encodeState(s1,s2,s3,s4)
+            while not complete:
+
+                a = np.argmax(qt[s])
+
+                if a == 1:
+                    player, reward, complete = game.hit(player, deck, dealer, s3)
+                    s1 = sum(player)
+
+                    s3 = 1 if 11 in player else 0
+                else:
+                    reward, complete = game.stand(player, dealer, deck)
+
+                s4 = deck.TC
+
+                s = encodeState(s1,s2,s3,s4)
+
+            reward *= (action+1)
+
+            state2 = getS4(deck.TC)
+
+            # Update Q
+            Q[state][action] = Q[state][action] + alpha*(reward + gamma*Q[state2][np.argmax(Q[state2])] - Q[state][action])
+
+            if complete:
+                epsilon = epsilon*decay
+                break
+            
+            state = state2
+            i += 1
+
+    return Q
+
+
 def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     """
     gamma: Discount rate
@@ -203,22 +273,28 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     """
     np.set_printoptions(threshold=sys.maxsize)
     q = Q_learn(gamma, alpha, epsilon, n_episodes, decay, Deck())
+    mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), q)
     env = gym.make('Blackjack-v0')
+    
+    deck = Deck()
+    game = Game()
+
     score = 0
     wins = 0
     losses = 0
     draws = 0
-    deck = Deck()
-    game = Game()
     over5 = 0
     under5 = 0
     o5w = 0
     u5w = 0
+    winnings = 0
     for i in range(iterations):
 
         player, dealer, s1, s2, s3, s4 = game.start(deck)
 
         s = encodeState(s1,s2,s3,s4)
+
+        payout = np.argmax(mini[getS4(deck.TC)])
 
         complete = 0
         if not i % 10000:
@@ -241,15 +317,20 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
             # Get new state & reward from environment
             #s1,r,d,_ = env.step(a)
             if complete:
+
+                # Winnings Tracker
+                winnings += reward * payout
+
+                # Update Tracker
                 if deck.TC >= 0:
                     over5 += 1
                     o5w += reward
                 elif deck.TC <= 0:
                     under5 += 1
                     u5w += reward
-            #if not i % 1000:
-            #    print(reward)
-            if complete:
+
+
+                # Update Wins
                 if reward == 1:
                     wins += 1
                     #wins += max(1,deck.TC)
@@ -270,8 +351,11 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     print(f"The agents average score was {((wins-losses)/iterations)}, and won {wins} times, lost {losses} times, drawed {draws} times")
     print(f"Over = {o5w/over5}", f"Under = {u5w/under5}")
     print(f"{o5w}, {over5}, {u5w}, {under5}")
+    print(f"Earnings: {winnings}")
+    return q
+
+Q = play(1.0, 0.1, 1, 800000, 0.999998, 500000)
 
 
-play(1.0, 0.1, 1, 600000, 0.999998, 500000)
-
+#mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
 
