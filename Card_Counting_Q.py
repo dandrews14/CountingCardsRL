@@ -6,35 +6,47 @@ import time
 import sys
 import random
 
+# Rules:
+#   Dealer Hits on anything less than 17
+#   6 Decks played straight through
+#   3:2 Blackjack
+
+
 def encodeState(s1,s2,s3,s4):
   #print(s1,s2,s3,s4)
   if s3:
       s3 = 1
   else:
       s3 = 0
-
+  
   s4 = getS4(s4)
 
   output = s1
-  output *= 11
+  output *= 12
   output += s2
-  output *= 5
+  output *= 8
   output += s4
   output *= 2
   output += s3
   return output 
 
 def getS4(s4):
-    if s4 <= -10:
+    if s4 <= -6:
         s4 = 0
-    elif s4 <= -5:
+    elif s4 <= -4:
         s4 = 1
-    elif -5 < s4 < 5:
+    elif s4 <= -3:
         s4 = 2
-    elif 5 <= s4 < 10:
-        s4 = 3 
-    else:
+    elif s4 <= -1:
+        s4 = 3
+    elif s4 <= 1:
         s4 = 4
+    elif s4 <= 3:
+        s4 = 5
+    elif s4 <= 4:
+        s4 = 6
+    else:
+        s4 = 7
     return s4
 
 class Deck:
@@ -69,19 +81,27 @@ class Game:
         player.append(deck.draw())
         if sum(player) > 21:
             if s3 == 1:
-                player[player.index(11)] = 1
-                complete = 0
-                reward = 0
-                s3 = 0
+                while True:
+                    player[player.index(11)] = 1
+                    s3 = 1 if 11 in player else 0
+                    if sum(player) <= 21:
+                        complete = 0
+                        reward = 0
+                        break
+                    if sum(player) > 21 and s3 == 0:
+                        complete = 1
+                        reward = -1
+                        break
+
             else:
                 complete = 1
                 reward = -1
-        elif sum(player) == 21:
-            if sum(dealer) != 21:
-                reward = 1
-            else:
-                reward = 0
-            complete = 1
+        #elif sum(player) == 21:
+        #    if sum(dealer) != 21:
+        #        reward = 1
+        #    else:
+        #        reward = 0
+        #    complete = 1
         else:
             reward = 0
             complete = 0
@@ -96,9 +116,15 @@ class Game:
                 while sum(dealer) < 17:
                     dealer.append(deck.draw())
                 if sum(dealer) > 21:
-                    reward = 1
+                    if sum(player) == 21:
+                        reward = 1.5
+                    else:
+                        reward = 1
                 elif sum(dealer) < sum(player):
-                    reward = 1
+                    if sum(player) == 21:
+                        reward = 1.5
+                    else:
+                        reward = 1
                 elif sum(dealer) == sum(player):
                     reward = 0
                 else:
@@ -106,7 +132,10 @@ class Game:
             else:
                 reward = 1
         elif sum(dealer) < sum(player):
-            reward = 1
+            if sum(player) == 21:
+                reward = 1.5
+            else:
+                reward = 1
         elif sum(dealer) == sum(player):
             reward = 0
         else:
@@ -130,7 +159,7 @@ class Game:
         s1 = sum(player)
         s2 = dealer[1]
         s3 = 1 if 11 in player else 0
-        s4 = deck.TC
+        s4 = getS4(deck.TC)
 
         return player, dealer, s1, s2, s3, s4
 
@@ -148,7 +177,7 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
     game = Game()
     
-    Q = np.zeros((32 * 12 * 2 * 5, 8))
+    Q = np.zeros((33 * 12 * 2 * 8, 8))
     for ep in range(n_episodes):
 
         # Start game
@@ -193,7 +222,7 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
                 action = 0
                 reward, complete = game.stand(player, dealer, deck)
 
-            s4 = deck.TC
+            s4 = getS4(deck.TC)
 
             state2 = encodeState(s1,s2,s3,s4)
 
@@ -261,11 +290,12 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 a = np.argmax(q[s])
                 if not i % 10000:
                     print("START")
-                    print(a)
+                    print(a,deck.TC)
             else:
                 a = np.argmax(q[s][:2])
                 if not i % 10000:
                     print("PLAYING")
+                    print(s1,s2,s3,deck.TC)
                     print(a)
 
 
@@ -315,7 +345,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 #elif deck.TC <= -12 and reward == 1:
                 #    u5w += 1
 
-            s4 = deck.TC
+            s4 = getS4(deck.TC)
 
             #s = s1
             s = encodeState(s1,s2,s3,s4)
@@ -325,7 +355,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     print(f"Earnings: {winnings}")
     return q
 
-Q = play(1.0, 0.1, 1, 800000, 0.999998, 500000)
+Q = play(1.0, 0.1, 1, 1000000, 0.999998, 500000)
 
 
 #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
