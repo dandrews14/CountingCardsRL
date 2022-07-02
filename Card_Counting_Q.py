@@ -148,75 +148,23 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
     game = Game()
     
-    Q = np.zeros((32 * 12 * 2 * 5, 2))
+    Q = np.zeros((32 * 12 * 2 * 5, 8))
     for ep in range(n_episodes):
 
-        player, dealer, s1, s2, s3, s4 = game.start(deck)
-
+        # Start game
+        s1, s2, s3, s4 = 0,0,0,getS4(deck.TC)
         state = encodeState(s1,s2,s3,s4)
-        
-        if not ep%10000:
-            print(ep, "epsilon: {}".format(epsilon))
-        
-        #if np.random.uniform(0,1) < epsilon:
-        #    action =  random.randint(0, 1) # take random action
-        #else:
-        #    action = np.argmax(Q[state])
-        #print(deck.TC)
 
-        i = 0
-        while i < max_steps:
 
-            if np.random.uniform(0,1) < epsilon:
-                action = random.randint(0, 1) # take random action
-            else:
-                action = np.argmax(Q[state])
-            
-            if action == 1:
-                player, reward, complete = game.hit(player, deck, dealer, s3)
-                s1 = sum(player)
+        #player, dealer, s1, s2, s3, s4 = game.start(deck)
 
-                s3 = 1 if 11 in player else 0
-            else:
-                reward, complete = game.stand(player, dealer, deck)
-
-            s4 = deck.TC
-
-            state2 = encodeState(s1,s2,s3,s4)
-
-            # Update Q
-            Q[state][action] = Q[state][action] + alpha*(reward + gamma*Q[state2][np.argmax(Q[state2])] - Q[state][action])
-
-            if complete:
-                epsilon = epsilon*decay
-                break
-            
-            state = state2
-            i += 1
-
-    return Q
-
-def learnBetting(gamma, alpha, epsilon, n_episodes, decay, deck, qt):
-    """
-    gamma: Discount rate
-    alpha: Learning rate
-    epsilon: Exploration rate
-    n_episodes: Number of training episodes
-    decay: Epsilon decay rate
-    """
-    max_steps = 500
-
-    game = Game()
-    
-    Q = np.zeros((5, 8))
-    for ep in range(n_episodes):
-
-        state = getS4(deck.TC)
+        #state = encodeState(s1,s2,s3,s4)
         
         if not ep%10000:
             print(ep, "epsilon: {}".format(epsilon))
 
         i = 0
+        payout = 0
         while i < max_steps:
 
             if np.random.uniform(0,1) < epsilon:
@@ -224,33 +172,42 @@ def learnBetting(gamma, alpha, epsilon, n_episodes, decay, deck, qt):
             else:
                 action = np.argmax(Q[state])
             
-            complete = False
+            # Choose wager before game starts
+            if s2 == 0 and s1 == 0:
+                player, dealer, s1, s2, s3, s4 = game.start(deck)
+                state2 = encodeState(s1,s2,s3,s4)
+                reward = 0
+                complete = 0
+                payout = action + 1
 
-            player, dealer, s1, s2, s3, s4 = game.start(deck)
+            # Player has decided to hit
+            elif action >= 4:
+                action = 1
+                player, reward, complete = game.hit(player, deck, dealer, s3)
+                s1 = sum(player)
 
-            s = encodeState(s1,s2,s3,s4)
-            while not complete:
+                s3 = 1 if 11 in player else 0
+            
+            # Player has decided to hold
+            else:
+                action = 0
+                reward, complete = game.stand(player, dealer, deck)
 
-                a = np.argmax(qt[s])
+            s4 = deck.TC
 
-                if a == 1:
-                    player, reward, complete = game.hit(player, deck, dealer, s3)
-                    s1 = sum(player)
+            state2 = encodeState(s1,s2,s3,s4)
 
-                    s3 = 1 if 11 in player else 0
-                else:
-                    reward, complete = game.stand(player, dealer, deck)
-
-                s4 = deck.TC
-
-                s = encodeState(s1,s2,s3,s4)
-
-            reward *= (action+1)
-
-            state2 = getS4(deck.TC)
+            # Update payout based off initial wager
+            if complete:
+                reward *= payout
 
             # Update Q
-            Q[state][action] = Q[state][action] + alpha*(reward + gamma*Q[state2][np.argmax(Q[state2])] - Q[state][action])
+            try:
+                Q[state][action] = Q[state][action] + alpha*(reward + gamma*Q[state2][np.argmax(Q[state2])] - Q[state][action])
+            except:
+                print(state,action, state2)
+                print(s1,s2,s3,s4)
+                print(player,dealer)
 
             if complete:
                 epsilon = epsilon*decay
@@ -260,7 +217,6 @@ def learnBetting(gamma, alpha, epsilon, n_episodes, decay, deck, qt):
             i += 1
 
     return Q
-
 
 def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     """
@@ -273,8 +229,8 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     """
     np.set_printoptions(threshold=sys.maxsize)
     q = Q_learn(gamma, alpha, epsilon, n_episodes, decay, Deck())
-    mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), q)
-    env = gym.make('Blackjack-v0')
+    #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), q)
+    #env = gym.make('Blackjack-v0')
     
     deck = Deck()
     game = Game()
@@ -290,22 +246,31 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     winnings = 0
     for i in range(iterations):
 
-        player, dealer, s1, s2, s3, s4 = game.start(deck)
-
+        # Start game
+        s1, s2, s3, s4 = 0,0,0,getS4(deck.TC)
         s = encodeState(s1,s2,s3,s4)
 
-        payout = np.argmax(mini[getS4(deck.TC)])
+        payout = 0
 
         complete = 0
         if not i % 10000:
             print(i, "######################")
         while not complete:
-            # Choose action from Q table
-            a = np.argmax(q[s])
-            #if not i % 1000:
-            #    print(s1,s2,s3,s4)
+            
+            if s1 == s2 == 0:
+                a = np.argmax(q[s])
+            else:
+                a = np.argmax(q[s][:2])
 
-            if a == 1:
+
+            if s2 == 0 and s1 == 0:
+                player, dealer, s1, s2, s3, s4 = game.start(deck)
+                state2 = encodeState(s1,s2,s3,s4)
+                reward = 0
+                complete = 0
+                payout = a + 1
+
+            elif a == 1:
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
 
