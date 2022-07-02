@@ -259,8 +259,14 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
             
             if s1 == s2 == 0:
                 a = np.argmax(q[s])
+                if not i % 10000:
+                    print("START")
+                    print(a)
             else:
                 a = np.argmax(q[s][:2])
+                if not i % 10000:
+                    print("PLAYING")
+                    print(a)
 
 
             if s2 == 0 and s1 == 0:
