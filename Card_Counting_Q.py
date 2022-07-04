@@ -31,22 +31,8 @@ def encodeState(s1,s2,s3,s4):
   return output 
 
 def getS4(s4):
-    if s4 <= -6:
-        s4 = 0
-    elif s4 <= -4:
-        s4 = 1
-    elif s4 <= -3:
-        s4 = 2
-    elif s4 <= -1:
-        s4 = 3
-    elif s4 <= 1:
-        s4 = 4
-    elif s4 <= 3:
-        s4 = 5
-    elif s4 <= 4:
-        s4 = 6
-    else:
-        s4 = 7
+    s4 = max(0,s4)
+    s4 = min(9,s4)
     return s4
 
 class Deck:
@@ -66,10 +52,17 @@ class Deck:
             self.cards = [11,2,3,4,5,6,7,8,9,10,10,10,10]*24
             self.shuff()
             c = self.cards.pop(0)
-        if 2 <= c <= 6:
+        # Adjust count
+        if c == 11 or c == 8:
+            self.count += 0
+        elif c == 2 or c == 3 or c == 7:
             self.count += 1
-        elif c == 11 or c == 10:
+        elif c == 4 or c == 5 or c == 6:
+            self.count += 2
+        elif c == 9:
             self.count -= 1
+        else:
+            self.count -= 2
 
         self.TC = self.count // (1+(len(self.cards))//52)
         return c
@@ -227,7 +220,7 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
     game = Game()
     
-    Q = np.zeros((33 * 12 * 2 * 8, 8))
+    Q = np.zeros((33 * 12 * 2 * 10, 8))
     for ep in range(n_episodes):
 
         # Start game
@@ -342,6 +335,9 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     o5w = 0
     u5w = 0
     winnings = 0
+    hot = 0
+    hotw = 0
+
     for i in range(iterations):
 
         # Start game
@@ -382,21 +378,15 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 payout = a + 1
 
             elif a == 2:
-                if sum(player) == 11:
-                    print(a)
                 reward, complete = game.doubledown(player, dealer, deck, s3)
                 #print(f"{deck.TC}, {s1,s2,s3}")
 
             elif a == 1:
-                if sum(player) == 11:
-                    print(a)
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
 
                 s3 = 1 if 11 in player else 0
             else:
-                if sum(player) == 11:
-                    print(a)
                 reward, complete = game.stand(player, dealer, deck)
             # Get new state & reward from environment
             #s1,r,d,_ = env.step(a)
@@ -405,8 +395,12 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 # Winnings Tracker
                 winnings += reward * payout
 
+                if deck.TC >= 15:
+                    hot += 1
+                    hotw += reward * payout
+
                 # Update Tracker
-                if deck.TC >= 4:
+                if deck.TC >= 5:
                     over5 += 1
                     o5w += reward
                 elif deck.TC <= 0:
@@ -415,7 +409,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
 
 
                 # Update Wins
-                if reward == 1:
+                if reward >= 1:
                     wins += 1
                 elif reward == 0:
                     draws += 1
@@ -430,9 +424,10 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     print(f"Over = {o5w/over5}", f"Under = {u5w/under5}")
     print(f"{o5w}, {over5}, {u5w}, {under5}")
     print(f"Earnings: {winnings}")
+    print(f"Earnings: when count is high: {hotw}, per hand: {hotw/hot} ")
     return q
 
-Q = play(1.0, 0.1, 1, 2000000, 0.999998, 500000)
+Q = play(0.95, 0.0001, 1, 2000000, 0.999999, 500000)
 
 
 #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
