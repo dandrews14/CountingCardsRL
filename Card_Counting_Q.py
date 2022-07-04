@@ -388,7 +388,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
             elif a == 1:
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
-                if sum(player) == 1:
+                if sum(player) == 11:
                     print(s1,s2,s3,s4)
 
                 s3 = 1 if 11 in player else 0
