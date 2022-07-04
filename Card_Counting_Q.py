@@ -382,20 +382,22 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 payout = a + 1
 
             elif a == 2:
+                if sum(player) == 11:
+                    print(a)
                 reward, complete = game.doubledown(player, dealer, deck, s3)
                 #print(f"{deck.TC}, {s1,s2,s3}")
 
             elif a == 1:
+                if sum(player) == 11:
+                    print(a)
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
-                if sum(player) == 11:
-                    print(s1,s2,s3,s4)
 
                 s3 = 1 if 11 in player else 0
             else:
+                if sum(player) == 11:
+                    print(a)
                 reward, complete = game.stand(player, dealer, deck)
-            #d = complete
-
             # Get new state & reward from environment
             #s1,r,d,_ = env.step(a)
             if complete:
@@ -430,7 +432,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     print(f"Earnings: {winnings}")
     return q
 
-Q = play(1.0, 0.1, 1, 1000000, 0.999998, 500000)
+Q = play(1.0, 0.1, 1, 2000000, 0.999998, 500000)
 
 
 #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
