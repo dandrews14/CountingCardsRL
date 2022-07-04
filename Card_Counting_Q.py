@@ -145,6 +145,56 @@ class Game:
 
         return reward, complete
 
+    def doubledown(self, player, dealer, deck, s3):
+        player.append(deck.draw())
+        if sum(player) > 21:
+            if s3 == 1:
+                while True:
+                    player[player.index(11)] = 1
+                    s3 = 1 if 11 in player else 0
+                    if sum(player) <= 21:
+                        break
+                    if sum(player) > 21 and s3 == 0:
+                        break
+        while sum(dealer) < 17:
+            dealer.append(deck.draw())
+        if sum(player) > 21:
+            return -2, 1
+        if sum(dealer) > 21:
+            if 11 in dealer:
+                dealer[dealer.index(11)] = 1
+                while sum(dealer) < 17:
+                    dealer.append(deck.draw())
+                if sum(dealer) > 21:
+                    if sum(player) == 21:
+                        reward = 1.5
+                    else:
+                        reward = 1
+                elif sum(dealer) < sum(player):
+                    if sum(player) == 21:
+                        reward = 1.5
+                    else:
+                        reward = 1
+                elif sum(dealer) == sum(player):
+                    reward = 0
+                else:
+                    reward = -1
+            else:
+                reward = 1
+        elif sum(dealer) < sum(player):
+            if sum(player) == 21:
+                reward = 1.5
+            else:
+                reward = 1
+        elif sum(dealer) == sum(player):
+            reward = 0
+        else:
+            reward = -1
+
+        complete = 1
+        #print(reward*2)
+        return int(reward*2), complete
+
     def start(self, deck):
         # Deal in Dealer
         dealer = []
@@ -196,11 +246,27 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
         payout = 0
         while i < max_steps:
 
-            if np.random.uniform(0,1) < epsilon:
-                action = random.randint(0, 7) # take random action
+            #if np.random.uniform(0,1) < epsilon:
+            #    action = random.randint(0, 7) # take random action
+            #else:
+            if s1 == s2 == 0:
+                if np.random.uniform(0,1) < epsilon:
+                    action = random.randint(0, 7)
+                else:
+                    action = np.argmax(Q[state])
+            elif len(player) == 2:
+                if np.random.uniform(0,1) < epsilon:
+                    action = random.randint(0, 2)
+                else:
+                    action = np.argmax(Q[state][:3])
             else:
-                action = np.argmax(Q[state])
-            
+                if np.random.uniform(0,1) < epsilon:
+                    action = random.randint(0, 2)
+                else:
+                    action = np.argmax(Q[state][:2])
+
+                #action = np.argmax(Q[state])
+
             # Choose wager before game starts
             if s2 == 0 and s1 == 0:
                 player, dealer, s1, s2, s3, s4 = game.start(deck)
@@ -209,9 +275,13 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
                 complete = 0
                 payout = action + 1
 
+            elif action == 2:
+                reward, complete = game.doubledown(player, dealer, deck, s3)
+                s1 = sum(player)
+                s3 = 1 if 11 in player else 0
+
             # Player has decided to hit
-            elif action >= 4:
-                action = 1
+            elif action == 1:
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
 
@@ -219,7 +289,6 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
             
             # Player has decided to hold
             else:
-                action = 0
                 reward, complete = game.stand(player, dealer, deck)
 
             s4 = getS4(deck.TC)
@@ -291,6 +360,12 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 if not i % 10000:
                     print("START")
                     print(a,deck.TC)
+            elif len(player) == 2:
+                a = np.argmax(q[s][:3])
+                if not i % 10000:
+                    print("PLAYING")
+                    print(s1,s2,s3,deck.TC)
+                    print(a)
             else:
                 a = np.argmax(q[s][:2])
                 if not i % 10000:
@@ -306,9 +381,15 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 complete = 0
                 payout = a + 1
 
+            elif a == 2:
+                reward, complete = game.doubledown(player, dealer, deck, s3)
+                #print(f"{deck.TC}, {s1,s2,s3}")
+
             elif a == 1:
                 player, reward, complete = game.hit(player, deck, dealer, s3)
                 s1 = sum(player)
+                if sum(player) == 1:
+                    print(s1,s2,s3,s4)
 
                 s3 = 1 if 11 in player else 0
             else:
@@ -323,7 +404,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 winnings += reward * payout
 
                 # Update Tracker
-                if deck.TC >= 0:
+                if deck.TC >= 4:
                     over5 += 1
                     o5w += reward
                 elif deck.TC <= 0:
@@ -334,16 +415,10 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
                 # Update Wins
                 if reward == 1:
                     wins += 1
-                    #wins += max(1,deck.TC)
                 elif reward == 0:
                     draws += 1
                 else:
                     losses += 1
-                    #losses += max(1,deck.TC)
-                #if deck.TC >= 12 and reward == 1:
-                #    o5w += 1
-                #elif deck.TC <= -12 and reward == 1:
-                #    u5w += 1
 
             s4 = getS4(deck.TC)
 
