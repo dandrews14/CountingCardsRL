@@ -19,3 +19,9 @@ Game and models are coded from scratch. Implements the [Omega II](https://www.ga
   * Standing (0), Hitting (1), or Doubling Down (2) when it is in the opening deal.
   * Standing (0) or Hitting (1) otherwise
 * 7,920 possible states
+
+## Bankroll_Card_Counting_Q.py
+
+* Game adds additional states based off the current bankroll. Agent starts with a bankroll of 1,000. Wins game by reaching 1,025. Loses when bankroll is 0.
+* Bankroll states are discretized into 5 different blocks.
+* 39,600 possible states.
