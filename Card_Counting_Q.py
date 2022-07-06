@@ -89,12 +89,6 @@ class Game:
             else:
                 complete = 1
                 reward = -1
-        #elif sum(player) == 21:
-        #    if sum(dealer) != 21:
-        #        reward = 1
-        #    else:
-        #        reward = 0
-        #    complete = 1
         else:
             reward = 0
             complete = 0
@@ -185,7 +179,7 @@ class Game:
             reward = -1
 
         complete = 1
-        #print(reward*2)
+        
         return int(reward*2), complete
 
     def start(self, deck):
@@ -226,11 +220,6 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
         # Start game
         s1, s2, s3, s4 = 0,0,0,getS4(deck.TC)
         state = encodeState(s1,s2,s3,s4)
-
-
-        #player, dealer, s1, s2, s3, s4 = game.start(deck)
-
-        #state = encodeState(s1,s2,s3,s4)
         
         if not ep%10000:
             print(ep, "epsilon: {}".format(epsilon))
@@ -239,9 +228,6 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
         payout = 0
         while i < max_steps:
 
-            #if np.random.uniform(0,1) < epsilon:
-            #    action = random.randint(0, 7) # take random action
-            #else:
             if s1 == s2 == 0:
                 if np.random.uniform(0,1) < epsilon:
                     action = random.randint(0, 7)
@@ -257,8 +243,6 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
                     action = random.randint(0, 2)
                 else:
                     action = np.argmax(Q[state][:2])
-
-                #action = np.argmax(Q[state])
 
             # Choose wager before game starts
             if s2 == 0 and s1 == 0:
