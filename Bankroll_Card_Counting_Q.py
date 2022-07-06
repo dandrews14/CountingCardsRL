@@ -447,7 +447,10 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     #print(f"Earnings: when count is high: {hotw}, per hand: {hotw/hot} ")
     return q
 
-Q = play(0.95, 0.001, 1, 100000, 0.99999, 500)
+Q = play(0.95, 0.001, 1, 200000, 0.999992, 500)
+
+for i in Q:
+    print(i)
 
 
 #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
