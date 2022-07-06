@@ -20,14 +20,15 @@ def encodeState(s1,s2,s3,s4,s5):
       s3 = 0
   
   s4 = getS4(s4)
+  s5 = getS5(s5)
 
-  output = s5
-  output *= 33
-  output += s1
+  output = s1
   output *= 12
   output += s2
   output *= 8
   output += s4
+  output *= 5
+  output += s5
   output *= 2
   output += s3
   return int(output) 
@@ -36,6 +37,19 @@ def getS4(s4):
     s4 = max(0,s4)
     s4 = min(9,s4)
     return s4
+
+def getS5(s5):
+
+    if s5 <= 250:
+        return 0
+    elif s5 <= 500:
+        return 1
+    elif s5 <= 750:
+        return 2
+    elif s5 <= 1000:
+        return 3
+    else:
+        return 4
 
 class Deck:
     def __init__(self):
@@ -216,7 +230,7 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
     game = Game()
     
-    Q = np.zeros((33 * 12 * 2 * 10 * 1101, 8))
+    Q = np.zeros((33 * 12 * 2 * 10 * 5, 8))
     for ep in range(n_episodes):
 
         bankroll = 1000
@@ -284,12 +298,12 @@ def Q_learn(gamma, alpha, epsilon, n_episodes, decay, deck):
 
             if complete:
                 bankroll += reward
-                if bankroll <= 0 or bankroll >= 1100:
+                if bankroll <= 0 or bankroll >= 1025:
                     bankroll = max(0,bankroll)
-                    bankroll = min(1100,bankroll)
+                    bankroll = min(1025,bankroll)
                     complete = 1
                     reward += bankroll
-                    print(reward)
+                    #print(reward)
                 else:
                     complete = 0
                     s1, s2, s3, s4 = 0,0,0,getS4(deck.TC)
@@ -380,10 +394,10 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
 
 
             if complete:
-                if bankroll <= 0 or bankroll >= 1100:
+                if bankroll <= 0 or bankroll >= 1010:
                     complete = 1
                     bankroll = max(0,bankroll)
-                    bankroll = min(1100,bankroll)
+                    bankroll = min(1025,bankroll)
                     reward += bankroll
                     if bankroll <= 0:
                         losses += 1
@@ -433,7 +447,7 @@ def play(gamma, alpha, epsilon, n_episodes, decay, iterations):
     #print(f"Earnings: when count is high: {hotw}, per hand: {hotw/hot} ")
     return q
 
-Q = play(0.95, 0.0001, 1, 10000, 0.995, 50)
+Q = play(0.95, 0.001, 1, 100000, 0.99999, 500)
 
 
 #mini = learnBetting(1.0, 0.1, 1, 800000, 0.999998, Deck(), Q)
